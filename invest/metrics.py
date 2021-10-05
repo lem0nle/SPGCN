@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
-# Licensed under the MIT License.
-
 import numpy as np
 import pandas as pd
 from functools import wraps
@@ -13,21 +10,21 @@ from sklearn.metrics import (
     log_loss,
 )
 
-from recommenders.utils.constants import (
-    DEFAULT_USER_COL,
-    DEFAULT_ITEM_COL,
-    DEFAULT_RATING_COL,
-    DEFAULT_PREDICTION_COL,
-    DEFAULT_RELEVANCE_COL,
-    DEFAULT_SIMILARITY_COL,
-    DEFAULT_K,
-    DEFAULT_THRESHOLD,
-)
-from recommenders.datasets.pandas_df_utils import (
-    has_columns,
-    has_same_base_dtype,
-    lru_cache_df,
-)
+# from recommenders.utils.constants import (
+DEFAULT_USER_COL = 'src_ind'
+DEFAULT_ITEM_COL = 'dst_ind'
+DEFAULT_RATING_COL = 'label'
+DEFAULT_PREDICTION_COL = 'prediction'
+DEFAULT_RELEVANCE_COL = 'relevance'
+DEFAULT_SIMILARITY_COL = 'sim'
+DEFAULT_K = 5
+DEFAULT_THRESHOLD = 10
+# )
+# from recommenders.datasets.pandas_df_utils import (
+#     has_columns,
+#     has_same_base_dtype,
+#     lru_cache_df,
+# )
 
 
 def check_column_dtypes(func):
@@ -67,14 +64,14 @@ def check_column_dtypes(func):
             col_prediction (str): column name for prediction
         """
 
-        if not has_columns(rating_true, [col_user, col_item, col_rating]):
-            raise ValueError("Missing columns in true rating DataFrame")
-        if not has_columns(rating_pred, [col_user, col_item, col_prediction]):
-            raise ValueError("Missing columns in predicted rating DataFrame")
-        if not has_same_base_dtype(
-            rating_true, rating_pred, columns=[col_user, col_item]
-        ):
-            raise ValueError("Columns in provided DataFrames are not the same datatype")
+        # if not has_columns(rating_true, [col_user, col_item, col_rating]):
+        #     raise ValueError("Missing columns in true rating DataFrame")
+        # if not has_columns(rating_pred, [col_user, col_item, col_prediction]):
+        #     raise ValueError("Missing columns in predicted rating DataFrame")
+        # if not has_same_base_dtype(
+        #     rating_true, rating_pred, columns=[col_user, col_item]
+        # ):
+        #     raise ValueError("Columns in provided DataFrames are not the same datatype")
 
         return func(
             rating_true=rating_true,
@@ -91,7 +88,6 @@ def check_column_dtypes(func):
 
 
 @check_column_dtypes
-@lru_cache_df(maxsize=1)
 def merge_rating_true_pred(
     rating_true,
     rating_pred,
@@ -342,7 +338,6 @@ def logloss(
 
 
 @check_column_dtypes
-@lru_cache_df(maxsize=1)
 def merge_ranking_true_pred(
     rating_true,
     rating_pred,
