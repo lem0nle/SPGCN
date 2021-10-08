@@ -28,7 +28,7 @@ class GCNLayer(nn.Module):
     def forward(self, g, feature):
         g.ndata['h'] = feature
         g.update_all(gcn_msg, gcn_reduce)
-        h = g.ndata.pop('h')
+        h = g.ndata.pop('h') + feature
         h = self.linear(h)
         h = self.activation(h)
         return h
@@ -60,15 +60,16 @@ class GCN:
 
     def fit(self, train_loader, test, test_neg, epoch=50, lr=0.01, device='cpu'):
         model = self.model = self.model.to(device)
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-3)
         
         for e in range(epoch):
             logger.info(f'【epoch {e + 1}】')
             it = tqdm(train_loader)
+            self.model.train()
             for batch in it:
                 src_feat, dst_feat = self.model(self.graph, torch.tensor(batch['src_ind']), torch.tensor(batch['dst_ind']))
                 pred = torch.bmm(src_feat.unsqueeze(dim=1), dst_feat.unsqueeze(dim=2)).squeeze()
-                loss = F.binary_cross_entropy_with_logits(pred, torch.tensor(batch['label']).float())
+                loss = F.binary_cross_entropy_with_logits(pred, torch.tensor(batch['label']).clamp(0, 1).float())
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -81,17 +82,23 @@ class GCN:
         
             logger.info(f'epoch {e+1}: loss: {loss}')
 
-            # if (e + 1) % 10 != 0:
-            #         continue
+            if (e + 1) % 10 != 0:
+                    continue
 
             pred = self.predict(test)
             pred_neg = self.predict(test_neg)
             pred = pd.concat([pred, pred_neg], ignore_index=True)
-            metrics = evaluate(test, pred)
+            pred = pred.sample(frac=1).reset_index(drop=True)
+            metrics = evaluate(test, pred, top_k=5)
+            print(metrics)
+            metrics = evaluate(test, pred, top_k=10)
+            print(metrics)
+            metrics = evaluate(test, pred, top_k=20)
             print(metrics)
 
 
     def predict(self, test):
+        self.model.eval()
         src_feat, dst_feat = self.model(self.graph, torch.tensor(test['src_ind']), torch.tensor(test['dst_ind']))
         pred = torch.bmm(src_feat.unsqueeze(dim=1), dst_feat.unsqueeze(dim=2)).squeeze()
         test['prediction'] = pred.detach().numpy()

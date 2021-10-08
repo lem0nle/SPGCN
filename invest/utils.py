@@ -17,10 +17,10 @@ def dump_result(df, path):
 
 def evaluate(y, pred, top_k=5):
     metrics = {
-        'precision@k': precision_at_k(y, pred, k=top_k),
-        'recall@k': recall_at_k(y, pred, k=top_k),
-        'ndcg@k': ndcg_at_k(y, pred, k=top_k),
-        'map@k': map_at_k(y, pred, k=top_k)
+        f'precision@{top_k}': precision_at_k(y, pred, k=top_k),
+        f'recall@{top_k}': recall_at_k(y, pred, k=top_k),
+        f'ndcg@{top_k}': ndcg_at_k(y, pred, k=top_k),
+        f'map@{top_k}': map_at_k(y, pred, k=top_k)
     }
     return metrics
 
@@ -56,9 +56,13 @@ class DataLoader:
 
     def neg_sample(self):
         neg_src = np.repeat(self.data['src_ind'], self.neg_ratio)
-        dst = list(set(self.data['dst_ind']))
-        neg_dst = [random.choice(dst) for _ in range(len(neg_src))]
-        # neg_dst = np.random.randint(0, self.n_nodes, len(neg_src))
+
+        dst = set(self.data['dst_ind'])
+
+        # interacted = self.data.groupby(self.data['src_ind']).apply(lambda x: set(x['dst_ind']))
+        # neg_dst = [random.choice(list(dst - interacted[src])) for src in neg_src]
+        # neg_dst = [random.choice(dst) for _ in range(len(neg_src))]
+        neg_dst = np.random.randint(0, self.n_nodes, len(neg_src))
         neg_df = pd.DataFrame({'src_ind': neg_src, 'dst_ind': neg_dst, 'label': 0, 'date': np.nan})
         return neg_df
 
