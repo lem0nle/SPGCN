@@ -57,12 +57,12 @@ class DataLoader:
     def neg_sample(self):
         neg_src = np.repeat(self.data['src_ind'], self.neg_ratio)
 
-        dst = set(self.data['dst_ind'])
+        dst = list(set(self.data['dst_ind']))
 
         # interacted = self.data.groupby(self.data['src_ind']).apply(lambda x: set(x['dst_ind']))
         # neg_dst = [random.choice(list(dst - interacted[src])) for src in neg_src]
-        # neg_dst = [random.choice(dst) for _ in range(len(neg_src))]
-        neg_dst = np.random.randint(0, self.n_nodes, len(neg_src))
+        neg_dst = [random.choice(dst) for _ in range(len(neg_src))]
+        # neg_dst = np.random.randint(0, self.n_nodes, len(neg_src))
         neg_df = pd.DataFrame({'src_ind': neg_src, 'dst_ind': neg_dst, 'label': 0, 'date': np.nan})
         return neg_df
 
