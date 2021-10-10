@@ -1,63 +1,46 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import dgl.function as fn
+import dgl.nn as dglnn
 import pandas as pd
-from torch.nn.modules.sparse import Embedding
-from tqdm import tqdm
 from loguru import logger
+from tqdm import tqdm
 
-from invest.utils import evaluate, print_metrics
-
-
-gcn_msg = fn.copy_src(src='h', out='m')
-gcn_reduce = fn.sum(msg='m', out='h')
+from invest.utils import evaluate
 
 
-class GCNLayer(nn.Module):
-    def __init__(self, in_feats, out_feats):
-        super().__init__()
-        self.linear = nn.Linear(in_feats, out_feats)
-        self.activation = torch.tanh
-
-    def forward(self, g, feature):
-        with g.local_scope():
-            g.ndata['h'] = feature
-            g.update_all(gcn_msg, gcn_reduce)
-            h = g.ndata.pop('h') + feature
-            h = self.linear(h)
-            h = self.activation(h)
-            return h
-
-
-class GCNModel(nn.Module):
-    def __init__(self, in_feats, out_feats, n_nodes, n_layers=3):
+class RGCNModel(nn.Module):
+    def __init__(self, in_feats, hid_feats, out_feats, n_nodes, rel_names):
         super().__init__()
         self.embedding = nn.Embedding(n_nodes, in_feats)
-        modules = [
-            GCNLayer(in_feats, out_feats),
-        ]
-        modules.extend([GCNLayer(out_feats, out_feats)
-                        for _ in range(n_layers - 1)])
-        self.module_list = nn.ModuleList(modules)
-    
-    def forward(self, g, src, dst):
+
+        self.conv1 = dglnn.HeteroGraphConv({
+            rel: dglnn.GraphConv(in_feats, hid_feats)
+            for rel in rel_names}, aggregate='sum')
+        self.conv2 = dglnn.HeteroGraphConv({
+            rel: dglnn.GraphConv(hid_feats, out_feats)
+            for rel in rel_names}, aggregate='sum')
+
+    def forward(self, graph, src, dst):
+        # inputs are features of nodes
         emb = self.embedding.weight
-        for layer in self.module_list:
-            emb = layer(g, emb)
-        return emb[src], emb[dst]
+        h = self.conv1(graph, {'comp': emb})
+        h = {k: torch.tanh(v) for k, v in h.items()}
+        h = self.conv2(graph, h)
+        h = {k: torch.tanh(v) for k, v in h.items()}
+        return h['comp'][src], h['comp'][dst]
 
 
-class GCN:
+class RGCN:
     def __init__(self, graph, **kwargs):
         # 构造好模型
         self.graph = graph
-        self.model = GCNModel(**kwargs)
+        self.model = RGCNModel(**kwargs)
         self.params = kwargs
 
     def fit(self, train_loader, test, test_neg, epoch=50, lr=0.01, device='cpu'):
         model = self.model = self.model.to(device)
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-3)
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-3)
         
         for e in range(epoch):
             logger.info(f'【epoch {e + 1}】')
@@ -79,7 +62,7 @@ class GCN:
         
             logger.info(f'epoch {e+1}: loss: {loss}')
 
-            if (e + 1) % 10 != 0:
+            if (e + 1) % 2 != 0:
                     continue
 
             pred = self.predict(test)
@@ -87,11 +70,11 @@ class GCN:
             pred = pd.concat([pred, pred_neg], ignore_index=True)
             pred = pred.sample(frac=1).reset_index(drop=True)
             metrics = evaluate(test, pred, top_k=5)
-            print_metrics(metrics)
+            print(metrics)
             metrics = evaluate(test, pred, top_k=10)
-            print_metrics(metrics)
+            print(metrics)
             metrics = evaluate(test, pred, top_k=20)
-            print_metrics(metrics)
+            print(metrics)
 
 
     def predict(self, test):
@@ -106,3 +89,4 @@ class GCN:
 
     def load(self, path):
         self.model.load_state_dict(torch.load(path))
+
