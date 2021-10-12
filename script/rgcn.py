@@ -1,9 +1,10 @@
 # RGCN with relational graph feature for recommendation
 
-import numpy as np
+import dgl
 import pandas as pd
 
-from invest.utils import DataLoader, build_hetero_graph, build_multi_graph, load_data, dump_result, evaluate
+from invest.utils import build_multi_graph, load_data, dump_result, evaluate
+from invest.dataloader import BlockSamplingDataLoader
 from invest.model.RGCN import RGCN
 
 path = 'data/tyc/'
@@ -32,14 +33,16 @@ g = build_multi_graph(edge_dfs, n_nodes)
 
 # build model
 print('building model')
-model = RGCN(graph=g, in_feats=64, out_feats=64, n_nodes=n_nodes, num_rels=len(edge_dfs))
+model = RGCN(graph=g, in_feats=64, out_feats=64, n_nodes=n_nodes, num_rels=len(edge_dfs), n_layers=2)
 
 # build data loader
-train_loader = DataLoader(train, batch_size=10000)
+block_sampler = dgl.dataloading.MultiLayerFullNeighborSampler(2)
+train_loader = BlockSamplingDataLoader(train, g, block_sampler, batch_size=128)
+test_loader = BlockSamplingDataLoader(test, g, block_sampler, neg=test_neg, batch_size=256)
 
 # train and save model
 print('training...')
-model.fit(train_loader, test, test_neg, epoch=20)
+model.fit(train_loader, test_loader, epoch=20)
 model.save('model/RGCN.snapshot')
 
 print('training finished')
@@ -47,12 +50,14 @@ print('training finished')
 # predict
 # model.load('model/RGCN.snapshot')
 print('predicting...')
-pred = model.predict(test)
-pred_neg = model.predict(test_neg)
-pred = pd.concat([pred, pred_neg], ignore_index=True)
-pred = pred.sample(frac=1).reset_index(drop=True)
+pred = model.predict(test_loader)
 dump_result(pred, 'result/rgcn/rgcn_20.csv')
 
 # evaluate
 metrics = evaluate(test, pred, top_k=5)
 print(metrics)
+
+# best
+# {'precision@5': 0.09333333333333332, 'recall@5': 0.2839836533161315, 'ndcg@5': 0.208160765796159, 'map@5': 0.15555669210048936}
+# {'precision@10': 0.07301282051282053, 'recall@10': 0.3839026439467182, 'ndcg@10': 0.2470978743535754, 'map@10': 0.17432767068478447}
+# {'precision@20': 0.050032051282051286, 'recall@20': 0.46823957665081845, 'ndcg@20': 0.27425916275994733, 'map@20': 0.18341113415598392}

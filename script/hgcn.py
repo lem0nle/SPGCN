@@ -4,7 +4,8 @@ import pandas as pd
 from datetime import datetime
 from loguru import logger
 
-from invest.utils import DataLoader, build_hetero_graph, load_data, dump_result, evaluate, make_path, print_metrics
+from invest.utils import build_hetero_graph, load_data, dump_result, evaluate, make_path, print_metrics
+from invest.dataloader import DataLoader
 from invest.model.HGCN import RGCN
 
 path = 'data/tyc/'

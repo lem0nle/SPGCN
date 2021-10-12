@@ -43,54 +43,12 @@ def print_metrics(metrics):
     print(', '.join(f'{key}: {value:.4f}' for key, value in metrics.items()))
 
 
-class DataLoader:
-    def __init__(self, data, n_nodes=None, neg=None, batch_size=32, neg_ratio=4, shuffle=True):
-        self.data = data
-        self.n_nodes = n_nodes
-        self.neg = neg
-        self.batch_size = batch_size
-        self.neg_ratio = neg_ratio
-        self.shuffle = shuffle
-        self.params = {'batch_size': batch_size, 'neg_ratio': neg_ratio}
-
-    def __len__(self):
-        if self.neg:
-            return (len(self.data) + len(self.neg)) // self.batch_size
-        return len(self.data) * (1 + self.neg_ratio) // self.batch_size
-
-    def __iter__(self):
-        batch_size = self.batch_size
-
-        if self.neg is None:
-            data = pd.concat([self.data, self.neg_sample()], ignore_index=True)
-        else:
-            data = pd.concat([self.data, self.neg], ignore_index=True)
-        
-        # shuffle data
-        if self.shuffle:
-            data = data.sample(frac=1).reset_index(drop=True)
-
-        for i in range(len(data) // self.batch_size):
-            yield data[i*batch_size:(i+1)*batch_size].reset_index(drop=True)
-
-    def neg_sample(self):
-        neg_src = np.repeat(self.data['src_ind'], self.neg_ratio)
-
-        dst = list(set(self.data['dst_ind']))
-
-        # interacted = self.data.groupby(self.data['src_ind']).apply(lambda x: set(x['dst_ind']))
-        # neg_dst = [random.choice(list(dst - interacted[src])) for src in neg_src]
-        neg_dst = [random.choice(dst) for _ in range(len(neg_src))]
-        # neg_dst = np.random.randint(0, self.n_nodes, len(neg_src))
-        neg_df = pd.DataFrame({'src_ind': neg_src, 'dst_ind': neg_dst, 'label': 0, 'date': np.nan})
-        return neg_df
-
-
 def build_graph(data, n_nodes):
     return dgl.graph((data['src_ind'], data['dst_ind']), num_nodes=n_nodes)
 
 
 def build_multi_graph(edge_dfs, n_nodes):
+    edge_dfs = list(edge_dfs.values())
     n_rels = len(edge_dfs)
     g = dgl.DGLGraph()
     g.add_nodes(n_nodes)
@@ -117,6 +75,10 @@ def build_hetero_graph(edge_dfs, n_nodes):
     for key, df in edge_dfs.items():
         graph_data[('comp', key, 'comp')] = (df['src_ind'], df['dst_ind'])
     return dgl.heterograph(graph_data, num_nodes_dict={'comp': n_nodes})
+
+
+def random_walker(graph, walk_length=5):
+    pass
 
 
 def _create_bpr_loss(self, users, pos_items, neg_items):
