@@ -7,7 +7,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from invest.model.HGCN import RGCNModel
-from invest.model.GRU import GRU
 from invest.utils import evaluate
 
 
@@ -25,6 +24,7 @@ class SIP:
         # 构造好模型
         self.graph = graph
         self.model = RGCNModel(**kwargs)
+        self.rnn = nn.GRU(kwargs['in_feats'], kwargs['out_feats'], num_layers=1)
 
     def fit(self, train_loader, test_loader, epoch=50, lr=0.01, device='cpu'):
         model = self.model = self.model.to(device)
@@ -35,7 +35,7 @@ class SIP:
             it = tqdm(train_loader)
             self.model.train()
             for batch, (mfg, out_ind), seqs in it:
-                pred = self.predict_batch(mfg, out_ind)
+                pred = self.predict_batch(mfg, out_ind, seqs)
                 loss = F.binary_cross_entropy_with_logits(pred, torch.tensor(batch['label']).clamp(0, 1).float())
 
                 optimizer.zero_grad()
@@ -54,18 +54,25 @@ class SIP:
 
             pred = self.predict(test_loader)
             metrics = evaluate(test_loader.data, pred, top_k=5)
-            print(metrics)
+            logger.info(metrics)
             metrics = evaluate(test_loader.data, pred, top_k=10)
-            print(metrics)
+            logger.info(metrics)
             metrics = evaluate(test_loader.data, pred, top_k=20)
-            print(metrics)
+            logger.info(metrics)
 
-    def predict_batch(self, mfg, out_ind):
+    def predict_batch(self, mfg, out_ind, seqs):
         input = mfg[0].srcdata['_ID']
         emb = self.model(mfg, input)
         output = emb[out_ind]
         batch_len = len(output) // 2
-        src_feat, dst_feat = output[:batch_len], output[batch_len:]
+        src_feat_g, dst_feat_g = output[:batch_len], output[batch_len:]
+
+        _, h = self.rnn(self.model.embedding(seqs))
+        src_feat_s, dst_feat_s = h[0, :batch_len], h[0, batch_len:]
+
+        src_feat = src_feat_g + src_feat_s
+        dst_feat = dst_feat_g + dst_feat_s
+
         batch_pred = torch.bmm(src_feat.unsqueeze(dim=1), dst_feat.unsqueeze(dim=2)).squeeze()
         return batch_pred
 
@@ -76,8 +83,8 @@ class SIP:
         dst_inds = []
         preds = []
         with torch.no_grad():
-            for batch, (mfg, out_ind) in it:
-                pred = self.predict_batch(mfg, out_ind)
+            for batch, (mfg, out_ind), seqs in it:
+                pred = self.predict_batch(mfg, out_ind, seqs)
                 src_inds.append(batch['src_ind'])
                 dst_inds.append(batch['dst_ind'])
                 preds.append(pred.numpy())

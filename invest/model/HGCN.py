@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -21,14 +22,14 @@ class RGCNModel(nn.Module):
             rel: dglnn.GraphConv(hid_feats, out_feats)
             for rel in rel_names}, aggregate='sum')
 
-    def forward(self, graph, src, dst):
+    def forward(self, g, input):
         # inputs are features of nodes
-        emb = self.embedding.weight
-        h = self.conv1(graph, {'comp': emb})
+        emb = self.embedding(input)
+        h = self.conv1(g[0], {'comp': emb})
         h = {k: torch.tanh(v) for k, v in h.items()}
-        h = self.conv2(graph, h)
+        h = self.conv2(g[1], h)
         h = {k: torch.tanh(v) for k, v in h.items()}
-        return h['comp'][src], h['comp'][dst]
+        return h['comp']
 
 
 class RGCN:
@@ -38,7 +39,7 @@ class RGCN:
         self.model = RGCNModel(**kwargs)
         self.params = kwargs
 
-    def fit(self, train_loader, test, test_neg, epoch=50, lr=0.01, device='cpu'):
+    def fit(self, train_loader, test_loader, epoch=50, lr=0.01, device='cpu'):
         model = self.model = self.model.to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-3)
         
@@ -46,9 +47,8 @@ class RGCN:
             logger.info(f'【epoch {e + 1}】')
             it = tqdm(train_loader)
             self.model.train()
-            for batch in it:
-                src_feat, dst_feat = self.model(self.graph, torch.tensor(batch['src_ind']), torch.tensor(batch['dst_ind']))
-                pred = torch.bmm(src_feat.unsqueeze(dim=1), dst_feat.unsqueeze(dim=2)).squeeze()
+            for batch, (mfg, out_ind) in it:
+                pred = self.predict_batch(mfg, out_ind)
                 loss = F.binary_cross_entropy_with_logits(pred, torch.tensor(batch['label']).clamp(0, 1).float())
 
                 optimizer.zero_grad()
@@ -65,10 +65,8 @@ class RGCN:
             if (e + 1) % 2 != 0:
                     continue
 
-            pred = self.predict(test)
-            pred_neg = self.predict(test_neg)
-            pred = pd.concat([pred, pred_neg], ignore_index=True)
-            pred = pred.sample(frac=1).reset_index(drop=True)
+            pred = self.predict(test_loader)
+            test = test_loader.data
             metrics = evaluate(test, pred, top_k=5)
             print(metrics)
             metrics = evaluate(test, pred, top_k=10)
@@ -76,13 +74,34 @@ class RGCN:
             metrics = evaluate(test, pred, top_k=20)
             print(metrics)
 
+    def predict_batch(self, mfg, out_ind):
+        input = mfg[0].srcdata['_ID']
+        emb = self.model(mfg, input)
+        output = emb[out_ind]
+        batch_len = len(output) // 2
+        src_feat, dst_feat = output[:batch_len], output[batch_len:]
+        batch_pred = torch.bmm(src_feat.unsqueeze(dim=1), dst_feat.unsqueeze(dim=2)).squeeze()
+        return batch_pred
 
-    def predict(self, test):
+    def predict(self, test_loader):
         self.model.eval()
-        src_feat, dst_feat = self.model(self.graph, torch.tensor(test['src_ind']), torch.tensor(test['dst_ind']))
-        pred = torch.bmm(src_feat.unsqueeze(dim=1), dst_feat.unsqueeze(dim=2)).squeeze()
-        test['prediction'] = pred.detach().numpy()
-        return test
+        it = tqdm(test_loader)
+        src_inds = []
+        dst_inds = []
+        preds = []
+        with torch.no_grad():
+            for batch, (mfg, out_ind) in it:
+                pred = self.predict_batch(mfg, out_ind)
+                src_inds.append(batch['src_ind'])
+                dst_inds.append(batch['dst_ind'])
+                preds.append(pred.numpy())
+
+        df = pd.DataFrame({
+            'src_ind': np.concatenate(src_inds),
+            'dst_ind': np.concatenate(dst_inds),
+            'prediction': np.concatenate(preds),
+        })
+        return df
 
     def save(self, path):
         torch.save(self.model.state_dict(), path)

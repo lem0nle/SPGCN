@@ -2,15 +2,22 @@
 
 import dgl
 import pandas as pd
+from datetime import datetime
+from loguru import logger
 
-from invest.utils import build_multi_graph, load_data, dump_result, evaluate
+from invest.utils import build_multi_graph, load_data, dump_result, evaluate, make_path
 from invest.dataloader import BlockSamplingDataLoader
 from invest.model.RGCN import RGCN
 
 path = 'data/tyc/'
+save_path = f'ws/RGCN/{datetime.now().strftime("%Y%m%d%H%M%S")}/'
+make_path(save_path)
+
+logger.add(save_path + 'train.log', format='{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}')
+logger.info('******* HGCN *******')
 
 # load raw data
-print('loading data')
+logger.info('loading data')
 train = load_data(path + 'train.csv')
 valid = load_data(path + 'valid.csv')
 train = pd.concat([train, valid], ignore_index=True)
@@ -19,7 +26,7 @@ test = load_data(path + 'test.csv')
 test_neg = load_data(path + 'test_neg.csv')
 
 # load and build graphs
-print('load and build multi-graph')
+logger.info('load and build multi-graph')
 n_nodes = len(load_data(path + 'comps_total.csv'))
 edge_dfs = {
     'label': train,          # train df first
@@ -32,7 +39,7 @@ edge_dfs = {
 g = build_multi_graph(edge_dfs, n_nodes)
 
 # build model
-print('building model')
+logger.info('building model')
 model = RGCN(graph=g, in_feats=64, out_feats=64, n_nodes=n_nodes, num_rels=len(edge_dfs), n_layers=2)
 
 # build data loader
@@ -41,21 +48,21 @@ train_loader = BlockSamplingDataLoader(train, g, block_sampler, batch_size=128)
 test_loader = BlockSamplingDataLoader(test, g, block_sampler, neg=test_neg, batch_size=256)
 
 # train and save model
-print('training...')
+logger.info('training...')
 model.fit(train_loader, test_loader, epoch=20)
 model.save('model/RGCN.snapshot')
 
-print('training finished')
+logger.info('training finished')
 
 # predict
 # model.load('model/RGCN.snapshot')
-print('predicting...')
+logger.info('predicting...')
 pred = model.predict(test_loader)
 dump_result(pred, 'result/rgcn/rgcn_20.csv')
 
 # evaluate
 metrics = evaluate(test, pred, top_k=5)
-print(metrics)
+logger.info(metrics)
 
 # best
 # {'precision@5': 0.09333333333333332, 'recall@5': 0.2839836533161315, 'ndcg@5': 0.208160765796159, 'map@5': 0.15555669210048936}

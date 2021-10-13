@@ -1,7 +1,6 @@
 import random
 import dgl
 from dgl.sampling.neighbor import sample_neighbors
-from dgl.subgraph import node_subgraph
 import pandas as pd
 import numpy as np
 import torch
