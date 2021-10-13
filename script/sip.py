@@ -6,8 +6,8 @@ from datetime import datetime
 import dgl
 from loguru import logger
 
-from invest.utils import build_hetero_graph, random_walker, load_data, dump_result, evaluate, make_path, print_metrics
-from invest.dataloader import BlockSeqSamplingDataLoader
+from invest.utils import build_hetero_graph, load_data, dump_result, evaluate, make_path, print_metrics
+from invest.dataloader import BlockSeqSamplingDataLoader, RandomWalkSampler
 from invest.model.SIP import SIP
 
 
@@ -43,19 +43,19 @@ logger.info(g)
 
 # build model
 logger.info('building model')
-model = SIP(graph=g, in_feats=64, hid_feats=64, out_feats=64, input_size=64, hidden_size=64, n_nodes=n_nodes, rel_names=edge_dfs.keys())
+# model = SIP(graph=g, in_feats=64, hid_feats=64, out_feats=64, input_size=64, hidden_size=64, n_nodes=n_nodes, rel_names=edge_dfs.keys())
+model = SIP(graph=g, in_feats=64, hid_feats=64, out_feats=64, n_nodes=n_nodes, rel_names=edge_dfs.keys())
 logger.info(model.params)
 
-# build random walker and data loader
-random_walker = random_walker(g)
-
+# build sampler and data loader
+random_walk_sampler = RandomWalkSampler(5)
 block_sampler = dgl.dataloading.MultiLayerFullNeighborSampler(2)
-train_loader = BlockSeqSamplingDataLoader(train, g, block_sampler, batch_size=128)
-test_loader = BlockSeqSamplingDataLoader(test, g, block_sampler, neg=test_neg, batch_size=256)
+train_loader = BlockSeqSamplingDataLoader(train, g, block_sampler, random_walk_sampler, batch_size=128)
+test_loader = BlockSeqSamplingDataLoader(test, g, block_sampler, random_walk_sampler, neg=test_neg, batch_size=256)
 
 # train and save model
 print('training...')
-model.fit(train_loader, test_loader, random_walker, epoch=20)
+model.fit(train_loader, test_loader, epoch=20)
 model.save(save_path + 'SIPmodel.snapshot')
 
 print('training finished')

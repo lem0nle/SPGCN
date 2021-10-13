@@ -1,4 +1,6 @@
 import random
+import dgl
+from dgl.sampling.neighbor import sample_neighbors
 from dgl.subgraph import node_subgraph
 import pandas as pd
 import numpy as np
@@ -65,6 +67,10 @@ class BlockSamplingDataLoader(DataLoader):
 
     def _generate_batch(self, batch):
         all_nodes = list(batch['src_ind']) + list(batch['dst_ind'])
+        mfg, out_ind = self._generate_mfg(all_nodes)
+        return batch, (mfg, out_ind)
+
+    def _generate_mfg(self, all_nodes):
         seed_nodes, out_ind, node_ind = [], [], {}
         for k in all_nodes:
             if k not in node_ind:
@@ -75,9 +81,40 @@ class BlockSamplingDataLoader(DataLoader):
 
         seed_nodes = torch.tensor(seed_nodes)
         mfg = self.block_sampler.sample_blocks(self.graph, seed_nodes)
-        return batch, (mfg, out_ind)
+        return mfg, out_ind
 
 
-class BlockSeqSamplingDataLoader(DataLoader):
-    def __init__(self, data, n_nodes=None, neg=None, batch_size=32, neg_ratio=4, shuffle=True):
-        super().__init__(data, n_nodes=n_nodes, neg=neg, batch_size=batch_size, neg_ratio=neg_ratio, shuffle=shuffle)
+class BlockSeqSamplingDataLoader(BlockSamplingDataLoader):
+    def __init__(self, data, graph, block_sampler, seq_sampler, n_nodes=None, neg=None, batch_size=32, neg_ratio=4, shuffle=True):
+        super().__init__(data, graph, block_sampler, n_nodes=n_nodes, neg=neg, batch_size=batch_size, neg_ratio=neg_ratio, shuffle=shuffle)
+        self.seq_sampler = seq_sampler
+
+    def _generate_batch(self, batch):
+        all_nodes = list(batch['src_ind']) + list(batch['dst_ind'])
+
+        mfg, out_ind = self._generate_mfg(all_nodes)
+        seqs = self._generate_seq(all_nodes)
+
+        return batch, (mfg, out_ind), seqs
+    
+    def _generate_seq(self, all_nodes):
+        return self.seq_sampler.sample_seqs(self.graph, all_nodes)
+
+
+class RandomWalkSampler:
+    def __init__(self, seq_len):
+        self.seq_len = seq_len
+    
+    def sample_seqs(self, g, nodes):
+        seq = [nodes]
+        for _ in range(self.seq_len - 1):
+            neighbors = []
+            sg = sample_neighbors(g, nodes, 1)
+            src, dst = list(zip(*[sg.edges(etype=etype) for etype in sg.etypes]))
+            src = torch.cat(src).tolist()
+            dst = torch.cat(dst).tolist()
+            dst2src = {d: s for s, d in zip(src, dst)}
+            neighbors = [dst2src.get(n, n) for n in nodes]
+            seq.append(neighbors)
+            nodes = neighbors
+        return torch.tensor(seq[::-1])
