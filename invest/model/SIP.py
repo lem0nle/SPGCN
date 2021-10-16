@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from invest.model.HGCN import RGCNModel
-from invest.utils import evaluate
+from invest.utils import evaluate, format_metrics
 
 
 class SIPModel(nn.Module):
@@ -25,10 +25,11 @@ class SIP:
         self.graph = graph
         self.model = RGCNModel(**kwargs)
         self.rnn = nn.GRU(kwargs['in_feats'], kwargs['out_feats'], num_layers=1)
+        self.pred_model = nn.Linear(2*kwargs['out_feats'], kwargs['out_feats'])
 
     def fit(self, train_loader, test_loader, epoch=50, lr=0.01, device='cpu'):
         model = self.model = self.model.to(device)
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-3)
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=4e-3)
         
         for e in range(epoch):
             logger.info(f'【epoch {e + 1}】')
@@ -53,12 +54,8 @@ class SIP:
                     continue
 
             pred = self.predict(test_loader)
-            metrics = evaluate(test_loader.data, pred, top_k=5)
-            logger.info(metrics)
-            metrics = evaluate(test_loader.data, pred, top_k=10)
-            logger.info(metrics)
-            metrics = evaluate(test_loader.data, pred, top_k=20)
-            logger.info(metrics)
+            metrics = evaluate(test_loader.data, pred, top_k=[5, 10, 20])
+            logger.info(format_metrics(metrics))
 
     def predict_batch(self, mfg, out_ind, seqs):
         input = mfg[0].srcdata['_ID']
@@ -70,10 +67,13 @@ class SIP:
         _, h = self.rnn(self.model.embedding(seqs))
         src_feat_s, dst_feat_s = h[0, :batch_len], h[0, batch_len:]
 
-        src_feat = src_feat_g + src_feat_s
-        dst_feat = dst_feat_g + dst_feat_s
-
-        batch_pred = torch.bmm(src_feat.unsqueeze(dim=1), dst_feat.unsqueeze(dim=2)).squeeze()
+        # src_feat = src_feat_g + src_feat_s
+        # src_feat = torch.tanh(self.pred_model(torch.cat([src_feat_g, src_feat_s], dim=1)))
+        batch_pred_g = torch.bmm(src_feat_g.unsqueeze(dim=1), dst_feat_g.unsqueeze(dim=2)).squeeze()
+        batch_pred_s = torch.bmm(src_feat_s.unsqueeze(dim=1), dst_feat_s.unsqueeze(dim=2)).squeeze()
+        # batch_pred_g = self.pred_model(torch.cat([src_feat, dst_feat_g], dim=1))
+        # batch_pred_s = self.pred_model(torch.cat([src_feat, dst_feat_s], dim=1))
+        batch_pred = torch.maximum(batch_pred_g, batch_pred_s).squeeze()
         return batch_pred
 
     def predict(self, test_loader):

@@ -7,7 +7,7 @@ import pandas as pd
 from loguru import logger
 from tqdm import tqdm
 
-from invest.utils import evaluate
+from invest.utils import evaluate, format_metrics
 
 
 class RGCNModel(nn.Module):
@@ -66,13 +66,8 @@ class RGCN:
                     continue
 
             pred = self.predict(test_loader)
-            test = test_loader.data
-            metrics = evaluate(test, pred, top_k=5)
-            print(metrics)
-            metrics = evaluate(test, pred, top_k=10)
-            print(metrics)
-            metrics = evaluate(test, pred, top_k=20)
-            print(metrics)
+            metrics = evaluate(test_loader.data, pred, top_k=[5, 10, 20])
+            logger.info(format_metrics(metrics))
 
     def predict_batch(self, mfg, out_ind):
         input = mfg[0].srcdata['_ID']

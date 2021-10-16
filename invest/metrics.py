@@ -116,8 +116,8 @@ def merge_rating_true_pred(
     # pd.merge will apply suffixes to columns which have the same name across both dataframes
     suffixes = ["_true", "_pred"]
     rating_true_pred = pd.merge(
-        rating_true, rating_pred, on=[col_user, col_item], suffixes=suffixes
-    )
+        rating_true, rating_pred, on=[col_user, col_item], suffixes=suffixes, how='outer'
+    ).fillna(0)
     if col_rating in rating_pred.columns:
         col_rating = col_rating + suffixes[0]
     if col_prediction in rating_true.columns:

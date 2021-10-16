@@ -5,7 +5,7 @@ import pandas as pd
 from datetime import datetime
 from loguru import logger
 
-from invest.utils import build_graph, load_data, dump_result, evaluate, make_path, print_metrics
+from invest.utils import build_graph, format_metrics, load_data, dump_result, evaluate, make_path
 from invest.dataloader import DataLoader
 from invest.model.GCN import GCN
 
@@ -60,15 +60,8 @@ pred = pred.sample(frac=1).reset_index(drop=True)
 dump_result(pred, save_path + f'result_{params["epoch"]}_{params["lr"]}.csv')
 
 # evaluate
-metrics = evaluate(test, pred, top_k=5)
-print_metrics(metrics)
-logger.info(metrics)
-metrics = evaluate(test, pred, top_k=10)
-print_metrics(metrics)
-logger.info(metrics)
-metrics = evaluate(test, pred, top_k=20)
-print_metrics(metrics)
-logger.info(metrics)
+metrics = evaluate(test, pred, top_k=[5, 10, 20])
+logger.info(format_metrics(metrics))
 
 # best:
 # {'precision@5': 0.011764705882352938, 'recall@5': 0.03613709020605105, 'ndcg@5': 0.025209521323411817, 'map@5': 0.017221131468785882}

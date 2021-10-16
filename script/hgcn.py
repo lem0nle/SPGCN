@@ -5,7 +5,7 @@ import pandas as pd
 from datetime import datetime
 from loguru import logger
 
-from invest.utils import build_hetero_graph, load_data, dump_result, evaluate, make_path, print_metrics
+from invest.utils import build_hetero_graph, format_metrics, load_data, dump_result, evaluate, make_path
 from invest.dataloader import BlockSamplingDataLoader, DataLoader
 from invest.model.HGCN import RGCN
 
@@ -64,12 +64,5 @@ pred = model.predict(test_loader)
 dump_result(pred, save_path + f'result_{params["epoch"]}_{params["lr"]}.csv')
 
 # evaluate
-metrics = evaluate(test, pred, top_k=5)
-print_metrics(metrics)
-logger.info(metrics)
-metrics = evaluate(test, pred, top_k=10)
-print_metrics(metrics)
-logger.info(metrics)
-metrics = evaluate(test, pred, top_k=20)
-print_metrics(metrics)
-logger.info(metrics)
+metrics = evaluate(test, pred, top_k=[5, 10, 20])
+logger.info(format_metrics(metrics))

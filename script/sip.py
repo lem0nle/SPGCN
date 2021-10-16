@@ -6,7 +6,7 @@ from datetime import datetime
 import dgl
 from loguru import logger
 
-from invest.utils import build_hetero_graph, load_data, dump_result, evaluate, make_path, print_metrics
+from invest.utils import build_hetero_graph, format_metrics, load_data, dump_result, evaluate, make_path
 from invest.dataloader import BlockSeqSamplingDataLoader, RandomWalkSampler
 from invest.model.SIP import SIP
 
@@ -35,7 +35,7 @@ edge_dfs = {
     'gudong': load_data(path + 'comp_gudong_comp.csv'),
     'gongying': load_data(path + 'comp_gongying_comp.csv'),
     'dwtz': load_data(path + 'comp_dwtz_comp.csv'),
-    'jingpin': load_data(path + 'comp_jingpin_comp.csv'),
+    # 'jingpin': load_data(path + 'comp_jingpin_comp.csv'),
     'lsgudong': load_data(path + 'comp_lsgudong_comp.csv'),
 }
 g = build_hetero_graph(edge_dfs, n_nodes)
@@ -50,8 +50,8 @@ logger.info(model.params)
 # build sampler and data loader
 random_walk_sampler = RandomWalkSampler(5)
 block_sampler = dgl.dataloading.MultiLayerFullNeighborSampler(2)
-train_loader = BlockSeqSamplingDataLoader(train, g, block_sampler, random_walk_sampler, batch_size=128)
-test_loader = BlockSeqSamplingDataLoader(test, g, block_sampler, random_walk_sampler, neg=test_neg, batch_size=256)
+train_loader = BlockSeqSamplingDataLoader(train, g, block_sampler, random_walk_sampler, batch_size=512)
+test_loader = BlockSeqSamplingDataLoader(test, g, block_sampler, random_walk_sampler, neg=test_neg, batch_size=2048)
 
 # train and save model
 print('training...')
@@ -67,15 +67,8 @@ pred = model.predict(test_loader)
 dump_result(pred, save_path + f'result.csv')
 
 # evaluate
-metrics = evaluate(test, pred, top_k=5)
-print_metrics(metrics)
-logger.info(metrics)
-metrics = evaluate(test, pred, top_k=10)
-print_metrics(metrics)
-logger.info(metrics)
-metrics = evaluate(test, pred, top_k=20)
-print_metrics(metrics)
-logger.info(metrics)
+metrics = evaluate(test, pred, top_k=[5, 10, 20])
+logger.info(format_metrics(metrics))
 
 # best
 # {'precision@5': 0.09474358974358973, 'recall@5': 0.2827203505248301, 'ndcg@5': 0.21005569685684367, 'map@5': 0.15752924419076567}

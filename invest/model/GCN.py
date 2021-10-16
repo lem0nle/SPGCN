@@ -7,7 +7,7 @@ from torch.nn.modules.sparse import Embedding
 from tqdm import tqdm
 from loguru import logger
 
-from invest.utils import evaluate, print_metrics
+from invest.utils import evaluate, format_metrics
 
 
 gcn_msg = fn.copy_src(src='h', out='m')
@@ -79,19 +79,15 @@ class GCN:
         
             logger.info(f'epoch {e+1}: loss: {loss}')
 
-            if (e + 1) % 10 != 0:
+            if (e + 1) % 1 != 0:
                     continue
 
             pred = self.predict(test)
             pred_neg = self.predict(test_neg)
             pred = pd.concat([pred, pred_neg], ignore_index=True)
             pred = pred.sample(frac=1).reset_index(drop=True)
-            metrics = evaluate(test, pred, top_k=5)
-            print_metrics(metrics)
-            metrics = evaluate(test, pred, top_k=10)
-            print_metrics(metrics)
-            metrics = evaluate(test, pred, top_k=20)
-            print_metrics(metrics)
+            metrics = evaluate(test, pred, top_k=[5, 10, 20])
+            logger.info(format_metrics(metrics))
 
 
     def predict(self, test):

@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 import torch
 
-from invest.metrics import precision_at_k, recall_at_k, ndcg_at_k, map_at_k
+from invest.metrics import auc, mae, precision_at_k, recall_at_k, ndcg_at_k, map_at_k, rmse
 
 
 def load_data(path, before_date=None):
@@ -31,16 +31,22 @@ def dump_result(df, path):
 
 def evaluate(y, pred, top_k=5):
     metrics = {
-        f'precision@{top_k}': precision_at_k(y, pred, k=top_k),
-        f'recall@{top_k}': recall_at_k(y, pred, k=top_k),
-        f'ndcg@{top_k}': ndcg_at_k(y, pred, k=top_k),
-        f'map@{top_k}': map_at_k(y, pred, k=top_k)
+        'mae': mae(y, pred),
+        'rmse': rmse(y, pred),
+        'auc': auc(y, pred)
     }
+    if not isinstance(top_k, list):
+        top_k = [top_k]
+    for k in top_k:
+        metrics[f'precision@{k}'] = precision_at_k(y, pred, k=k)
+        metrics[f'recall@{k}'] = recall_at_k(y, pred, k=k)
+        metrics[f'map@{k}'] = map_at_k(y, pred, k=k)
+        metrics[f'ndcg@{k}'] = ndcg_at_k(y, pred, k=k)
     return metrics
 
 
-def print_metrics(metrics):
-    print(', '.join(f'{key}: {value:.4f}' for key, value in metrics.items()))
+def format_metrics(metrics):
+    return ' '.join(f'[{key}: {value:.4f}]' for key, value in metrics.items())
 
 
 def build_graph(data, n_nodes):
@@ -75,33 +81,3 @@ def build_hetero_graph(edge_dfs, n_nodes):
     for key, df in edge_dfs.items():
         graph_data[('comp', key, 'comp')] = (df['src_ind'], df['dst_ind'])
     return dgl.heterograph(graph_data, num_nodes_dict={'comp': n_nodes})
-
-
-def random_walker(graph, walk_length=5):
-    pass
-
-
-def _create_bpr_loss(self, users, pos_items, neg_items):
-    """Calculate BPR loss.
-
-    Args:
-        users (tf.Tensor): User embeddings to calculate loss.
-        pos_items (tf.Tensor): Positive item embeddings to calculate loss.
-        neg_items (tf.Tensor): Negative item embeddings to calculate loss.
-
-    Returns:
-        tf.Tensor, tf.Tensor: Matrix factorization loss. Embedding regularization loss.
-
-    """
-    pos_scores = tf.reduce_sum(tf.multiply(users, pos_items), axis=1)
-    neg_scores = tf.reduce_sum(tf.multiply(users, neg_items), axis=1)
-
-    regularizer = (
-        tf.nn.l2_loss(self.u_g_embeddings_pre)
-        + tf.nn.l2_loss(self.pos_i_g_embeddings_pre)
-        + tf.nn.l2_loss(self.neg_i_g_embeddings_pre)
-    )
-    regularizer = regularizer / self.batch_size
-    mf_loss = tf.reduce_mean(tf.nn.softplus(-(pos_scores - neg_scores)))
-    emb_loss = self.decay * regularizer
-    return mf_loss, emb_loss

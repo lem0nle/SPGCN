@@ -5,7 +5,7 @@ import pandas as pd
 from datetime import datetime
 from loguru import logger
 
-from invest.utils import build_multi_graph, load_data, dump_result, evaluate, make_path
+from invest.utils import build_multi_graph, format_metrics, load_data, dump_result, evaluate, make_path
 from invest.dataloader import BlockSamplingDataLoader
 from invest.model.RGCN import RGCN
 
@@ -61,8 +61,8 @@ pred = model.predict(test_loader)
 dump_result(pred, 'result/rgcn/rgcn_20.csv')
 
 # evaluate
-metrics = evaluate(test, pred, top_k=5)
-logger.info(metrics)
+metrics = evaluate(test, pred, top_k=[5, 10, 20])
+logger.info(format_metrics(metrics))
 
 # best
 # {'precision@5': 0.09333333333333332, 'recall@5': 0.2839836533161315, 'ndcg@5': 0.208160765796159, 'map@5': 0.15555669210048936}
