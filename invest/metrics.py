@@ -1,6 +1,7 @@
+# code comes from: https://github.com/microsoft/recommenders
+
 import numpy as np
 import pandas as pd
-from functools import wraps
 from sklearn.metrics import (
     mean_squared_error,
     mean_absolute_error,
@@ -19,75 +20,7 @@ DEFAULT_RELEVANCE_COL = 'relevance'
 DEFAULT_SIMILARITY_COL = 'sim'
 DEFAULT_K = 5
 DEFAULT_THRESHOLD = 10
-# )
-# from recommenders.datasets.pandas_df_utils import (
-#     has_columns,
-#     has_same_base_dtype,
-#     lru_cache_df,
-# )
 
-
-def check_column_dtypes(func):
-    """Checks columns of DataFrame inputs
-
-    This includes the checks on:
-
-    * whether the input columns exist in the input DataFrames
-    * whether the data types of col_user as well as col_item are matched in the two input DataFrames.
-
-    Args:
-        func (function): function that will be wrapped
-
-    Returns:
-        function: Wrapper function for checking dtypes.
-    """
-
-    @wraps(func)
-    def check_column_dtypes_wrapper(
-        rating_true,
-        rating_pred,
-        col_user=DEFAULT_USER_COL,
-        col_item=DEFAULT_ITEM_COL,
-        col_rating=DEFAULT_RATING_COL,
-        col_prediction=DEFAULT_PREDICTION_COL,
-        *args,
-        **kwargs
-    ):
-        """Check columns of DataFrame inputs
-
-        Args:
-            rating_true (pandas.DataFrame): True data
-            rating_pred (pandas.DataFrame): Predicted data
-            col_user (str): column name for user
-            col_item (str): column name for item
-            col_rating (str): column name for rating
-            col_prediction (str): column name for prediction
-        """
-
-        # if not has_columns(rating_true, [col_user, col_item, col_rating]):
-        #     raise ValueError("Missing columns in true rating DataFrame")
-        # if not has_columns(rating_pred, [col_user, col_item, col_prediction]):
-        #     raise ValueError("Missing columns in predicted rating DataFrame")
-        # if not has_same_base_dtype(
-        #     rating_true, rating_pred, columns=[col_user, col_item]
-        # ):
-        #     raise ValueError("Columns in provided DataFrames are not the same datatype")
-
-        return func(
-            rating_true=rating_true,
-            rating_pred=rating_pred,
-            col_user=col_user,
-            col_item=col_item,
-            col_rating=col_rating,
-            col_prediction=col_prediction,
-            *args,
-            **kwargs
-        )
-
-    return check_column_dtypes_wrapper
-
-
-@check_column_dtypes
 def merge_rating_true_pred(
     rating_true,
     rating_pred,
@@ -337,7 +270,6 @@ def logloss(
     return log_loss(y_true, y_pred)
 
 
-@check_column_dtypes
 def merge_ranking_true_pred(
     rating_true,
     rating_pred,
