@@ -1,5 +1,4 @@
 import random
-import dgl
 from dgl.sampling.neighbor import sample_neighbors
 import pandas as pd
 import numpy as np
