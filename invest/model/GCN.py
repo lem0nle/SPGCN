@@ -24,7 +24,7 @@ class GCNLayer(nn.Module):
         with g.local_scope():
             g.ndata['h'] = feature
             g.update_all(gcn_msg, gcn_reduce)
-            h = g.ndata.pop('h') + feature
+            h = g.ndata.pop('h') # + feature
             h = self.linear(h)
             h = self.activation(h)
             return h
@@ -55,7 +55,7 @@ class GCN:
         self.model = GCNModel(**kwargs)
         self.params = kwargs
 
-    def fit(self, train_loader, test, test_neg, epoch=50, lr=0.01, device='cpu'):
+    def fit(self, train_loader, test, test_neg, epoch=50, lr=0.01, print_every=5, device='cpu'):
         model = self.model = self.model.to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-3)
         
@@ -79,7 +79,7 @@ class GCN:
         
             logger.info(f'epoch {e+1}: loss: {loss}')
 
-            if (e + 1) % 1 != 0:
+            if (e + 1) % print_every != 0:
                     continue
 
             pred = self.predict(test)

@@ -49,7 +49,7 @@ test_loader = BlockSamplingDataLoader(test, g, block_sampler, neg=test_neg, batc
 
 # train and save model
 logger.info('training...')
-model.fit(train_loader, test_loader, epoch=20)
+model.fit(train_loader, test_loader, epoch=20, print_every=1)
 model.save('model/RGCN.snapshot')
 
 logger.info('training finished')

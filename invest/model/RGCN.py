@@ -83,7 +83,7 @@ class RGCN:
         self.graph = graph
         self.model = RGCNModel(**kwargs)
 
-    def fit(self, train_loader, test_loader, epoch=50, lr=0.01, device='cpu'):
+    def fit(self, train_loader, test_loader, epoch=50, lr=0.01, print_every=5, device='cpu'):
         model = self.model = self.model.to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-3)
         
@@ -106,7 +106,7 @@ class RGCN:
 
             logger.info(f'epoch {e+1}: loss: {loss}')
 
-            if (e + 1) % 1 != 0:
+            if (e + 1) % print_every != 0:
                     continue
 
             pred = self.predict(test_loader)

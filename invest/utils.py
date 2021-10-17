@@ -1,4 +1,4 @@
-from dgl.batch import batch
+import numpy as np
 import pandas as pd
 import dgl
 import os
@@ -27,10 +27,11 @@ def dump_result(df, path):
 
 
 def evaluate(y, pred, top_k=5):
+    pred['prediction_'] = (np.tanh(pred['prediction']) + 1) / 2
     metrics = {
-        'mae': mae(y, pred),
-        'rmse': rmse(y, pred),
-        'auc': auc(y, pred)
+        'mae': mae(y, pred, col_prediction='prediction_'),
+        'rmse': rmse(y, pred, col_prediction='prediction_'),
+        'auc': auc(y, pred, col_prediction='prediction_')
     }
     if not isinstance(top_k, list):
         top_k = [top_k]

@@ -33,7 +33,7 @@ edge_dfs = {
     'gudong': load_data(path + 'comp_gudong_comp.csv'),
     'gongying': load_data(path + 'comp_gongying_comp.csv'),
     'dwtz': load_data(path + 'comp_dwtz_comp.csv'),
-    'jingpin': load_data(path + 'comp_jingpin_comp.csv'),
+    # 'jingpin': load_data(path + 'comp_jingpin_comp.csv'),
     'lsgudong': load_data(path + 'comp_lsgudong_comp.csv'),
 }
 g = build_hetero_graph(edge_dfs, n_nodes)
@@ -51,8 +51,8 @@ test_loader = BlockSamplingDataLoader(test, g, block_sampler, neg=test_neg, batc
 
 # train and save model
 logger.info('training...')
-params = {'epoch': 1, 'lr': 5e-3}
-model.fit(train_loader, test_loader, epoch=params['epoch'], lr=params['lr'])
+params = {'epoch': 10, 'lr': 5e-3}
+model.fit(train_loader, test_loader, epoch=params['epoch'], lr=params['lr'], print_every=1)
 model.save(save_path + f'model_{params["epoch"]}_{params["lr"]}.snapshot')
 
 logger.info('training finished')
@@ -66,3 +66,8 @@ dump_result(pred, save_path + f'result_{params["epoch"]}_{params["lr"]}.csv')
 # evaluate
 metrics = evaluate(test, pred, top_k=[5, 10, 20])
 logger.info(format_metrics(metrics))
+
+# [mae: 0.1481] [rmse: 0.2721] [auc: 0.6632]
+# [precision@5: 0.0917] [recall@5: 0.2823] [map@5: 0.1529] [ndcg@5: 0.2051]
+# [precision@10: 0.0701] [recall@10: 0.3646] [map@10: 0.1684] [ndcg@10: 0.2381]
+# [precision@20: 0.0472] [recall@20: 0.4242] [map@20: 0.1760] [ndcg@20: 0.2591]

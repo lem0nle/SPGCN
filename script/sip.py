@@ -55,7 +55,7 @@ test_loader = BlockSeqSamplingDataLoader(test, g, block_sampler, random_walk_sam
 
 # train and save model
 print('training...')
-model.fit(train_loader, test_loader, epoch=20)
+model.fit(train_loader, test_loader, epoch=20, print_every=1)
 model.save(save_path + 'SIPmodel.snapshot')
 
 print('training finished')
