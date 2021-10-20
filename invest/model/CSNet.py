@@ -102,6 +102,14 @@ class CSNet:
         a = torch.softmax(torch.cat([batch_dot(src_feat, dst_feat_c), batch_dot(src_feat, dst_feat_s), batch_dot(src_feat, dst_feat)], dim=-1), dim=-1)
         dst_feat_merge = a[:, :1] * dst_feat_c + a[:, 1:2] * dst_feat_s + a[:, 2:] * dst_feat
 
+        # a = torch.softmax(torch.cat([batch_dot(src_feat, dst_feat_c), batch_dot(src_feat, dst_feat)], dim=-1), dim=-1)
+        # dst_feat_merge = a[:, :1] * dst_feat_c + + a[:, 1:] * dst_feat
+
+        # a = torch.softmax(torch.cat([batch_dot(src_feat, dst_feat_s), batch_dot(src_feat, dst_feat)], dim=-1), dim=-1)
+        # dst_feat_merge = a[:, :1] * dst_feat_s + a[:, 1:] * dst_feat
+
+        # dst_feat_merge = (dst_feat_c + dst_feat_s + dst_feat) / 3
+
         batch_pred = batch_dot(src_feat, dst_feat_merge).squeeze()
         return batch_pred
 

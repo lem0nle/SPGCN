@@ -34,7 +34,7 @@ edge_dfs = {
     'label': train,          # train df first
     'gudong': load_data(path + 'comp_gudong_comp.csv'),
     'gongying': load_data(path + 'comp_gongying_comp.csv'),
-    # 'dwtz': load_data(path + 'comp_dwtz_comp.csv'),
+    'dwtz': load_data(path + 'comp_dwtz_comp.csv'),
     # 'jingpin': load_data(path + 'comp_jingpin_comp.csv'),
     # 'lsgudong': load_data(path + 'comp_lsgudong_comp.csv'),
 }
