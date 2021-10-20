@@ -38,14 +38,14 @@ model = GCN(graph=g, in_feats=64, out_feats=64, n_nodes=n_nodes)
 logger.info(model.params)
 
 # build data loader
-train_loader = DataLoader(train, n_nodes, batch_size=10000)
+train_loader = DataLoader(train, n_nodes, batch_size=80000, neg_ratio=50)
 # test_loader = DataLoader(test, n_nodes, batch_size=256, neg=test_neg, shuffle=False)
 logger.info(train_loader.params)
 
 # train and save model
 logger.info('training...')
-params = {'epoch': 30, 'lr': 0.01}
-model.fit(train_loader, test, test_neg, epoch=params['epoch'], lr=params['lr'])
+params = {'epoch': 30, 'lr': 1e-2}
+model.fit(train_loader, test, test_neg, epoch=params['epoch'], lr=params['lr'], print_every=1)
 model.save(save_path + f'model_{params["epoch"]}_{params["lr"]}.snapshot')
 
 logger.info('training finished')
@@ -72,12 +72,7 @@ logger.info(format_metrics(metrics))
 # {'precision@10': 0.07275641025641028, 'recall@10': 0.40168653644477575, 'ndcg@10': 0.24312913053544, 'map@10': 0.16549381866383794}
 # {'precision@20': 0.05423076923076923, 'recall@20': 0.519906906756495, 'ndcg@20': 0.28187889864635224, 'map@20': 0.17835464278454222}
 
-# [mae: 1.1536]<-- wrong [rmse: 1.1773]<-- wrong [auc: 0.5940] 
-# [precision@5: 0.0927] [recall@5: 0.2728] [map@5: 0.1455] [ndcg@5: 0.1991]
-# [precision@10: 0.0698] [recall@10: 0.3607] [map@10: 0.1615] [ndcg@10: 0.2325]
-# [precision@20: 0.0477] [recall@20: 0.4217] [map@20: 0.1694] [ndcg@20: 0.2542]
-
-# [mae: 0.2108] [rmse: 0.2924] [auc: 0.5858]
-# [precision@5: 0.0908] [recall@5: 0.2720] [map@5: 0.1465] [ndcg@5: 0.1987]
-# [precision@10: 0.0701] [recall@10: 0.3627] [map@10: 0.1641] [ndcg@10: 0.2344]
-# [precision@20: 0.0475] [recall@20: 0.4225] [map@20: 0.1717] [ndcg@20: 0.2558]
+# [mae: 0.3539] [rmse: 0.3912] [auc: 0.6452]
+# [precision@5: 0.0626] [recall@5: 0.2043] [map@5: 0.0999] [ndcg@5: 0.1381]
+# [precision@10: 0.0556] [recall@10: 0.3146] [map@10: 0.1174] [ndcg@10: 0.1797]
+# [precision@20: 0.0407] [recall@20: 0.4022] [map@20: 0.1263] [ndcg@20: 0.2082]

@@ -28,7 +28,7 @@ class RGCNModel(nn.Module):
         h = self.conv1(g[0], {'comp': emb})
         h = {k: torch.tanh(v) for k, v in h.items()}
         h = self.conv2(g[1], h)
-        h = {k: torch.tanh(v) for k, v in h.items()}
+        # h = {k: torch.tanh(v) for k, v in h.items()}
         return h['comp']
 
 
