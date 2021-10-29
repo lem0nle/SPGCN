@@ -40,7 +40,7 @@ class DataLoader:
         
         # shuffle data
         if self.shuffle:
-            epoch_data = epoch_data.sample(frac=1).reset_index(drop=True)
+            epoch_data = epoch_data.sample(frac=1, random_state=1).reset_index(drop=True)
         
         return epoch_data
 

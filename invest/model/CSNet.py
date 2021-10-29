@@ -31,17 +31,17 @@ class CSNetModel(nn.Module):
 
     def forward(self, mfg, bimfg, lmfg):
         # inputs are features of nodes
-        emb = self.embedding(lmfg[0].srcdata['_ID'])
+        emb = self.embedding(lmfg[0].srcdata['_ID']).detach()
         h = self.gcn1(lmfg[0], emb)
         h = self.gcn2(lmfg[1], h)
         hcf = h
 
-        emb = self.embedding(bimfg[0].srcdata['_ID'])
+        emb = self.embedding(bimfg[0].srcdata['_ID']).detach()
         h = self.rgcn1(bimfg[0], emb, etypes=bimfg[0].edata[dgl.ETYPE])
         h = self.rgcn2(bimfg[1], h, etypes=bimfg[1].edata[dgl.ETYPE])
         hc = h
 
-        emb = self.embedding(mfg[0].srcdata['_ID'])
+        emb = self.embedding(mfg[0].srcdata['_ID']).detach()
         h = self.conv1(mfg[0], {'comp': emb})
         h = self.conv2(mfg[1], h)
         hs = h['comp']
@@ -89,21 +89,29 @@ class CSNet:
             metrics = evaluate(test_loader.data, pred, top_k=[5, 10, 20])
             logger.info(format_metrics(metrics))
 
-    def predict_batch(self, mfg, bimfg, lmfg, out_ind):
+    def _pred(self, mfg, bimfg, lmfg, out_ind):
         hcf, hc, hs = self.model(mfg, bimfg, lmfg)
         hcf = hcf[out_ind]
         hc = hc[out_ind]
         hs = hs[out_ind]
+        return hcf, hc, hs
+
+    def predict_batch(self, mfg, bimfg, lmfg, out_ind):
+        hcf, hc, hs =  self._pred(mfg, bimfg, lmfg, out_ind)
         batch_len = len(hcf) // 2
         src_feat, dst_feat = hcf[:batch_len], hcf[batch_len:]
         _, dst_feat_c = hc[:batch_len], hc[batch_len:]
         _, dst_feat_s = hs[:batch_len], hs[batch_len:]
+            
 
-        a = torch.softmax(torch.cat([batch_dot(src_feat, dst_feat_c), batch_dot(src_feat, dst_feat_s), batch_dot(src_feat, dst_feat)], dim=-1), dim=-1)
-        dst_feat_merge = a[:, :1] * dst_feat_c + a[:, 1:2] * dst_feat_s + a[:, 2:] * dst_feat
+        # a = torch.softmax(torch.cat([batch_dot(src_feat, dst_feat_c), batch_dot(src_feat, dst_feat_s), batch_dot(src_feat, dst_feat)], dim=-1), dim=-1)
+        # dst_feat_merge = a[:, :1] * dst_feat_c + a[:, 1:2] * dst_feat_s + a[:, 2:] * dst_feat
+
+        a = torch.softmax(torch.cat([batch_dot(src_feat, dst_feat_c), batch_dot(src_feat, dst_feat_s)], dim=-1), dim=-1)
+        dst_feat_merge = a[:, :1] * dst_feat_c + a[:, 1:] * dst_feat_s
 
         # a = torch.softmax(torch.cat([batch_dot(src_feat, dst_feat_c), batch_dot(src_feat, dst_feat)], dim=-1), dim=-1)
-        # dst_feat_merge = a[:, :1] * dst_feat_c + + a[:, 1:] * dst_feat
+        # dst_feat_merge = a[:, :1] * dst_feat_c + a[:, 1:] * dst_feat
 
         # a = torch.softmax(torch.cat([batch_dot(src_feat, dst_feat_s), batch_dot(src_feat, dst_feat)], dim=-1), dim=-1)
         # dst_feat_merge = a[:, :1] * dst_feat_s + a[:, 1:] * dst_feat
