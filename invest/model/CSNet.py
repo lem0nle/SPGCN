@@ -24,10 +24,10 @@ class CSNetModel(nn.Module):
 
         self.conv1 = dglnn.HeteroGraphConv({
             rel: dglnn.GraphConv(in_feats, hid_feats, activation=torch.tanh, norm='none')
-            for rel in rel_names}, aggregate='sum')
+            for rel in rel_names}, aggregate='mean')
         self.conv2 = dglnn.HeteroGraphConv({
             rel: dglnn.GraphConv(hid_feats, out_feats, activation=torch.tanh, norm='none')
-            for rel in rel_names}, aggregate='sum')
+            for rel in rel_names}, aggregate='mean')
 
     def forward(self, mfg, bimfg, lmfg):
         # inputs are features of nodes
@@ -104,11 +104,11 @@ class CSNet:
         _, dst_feat_s = hs[:batch_len], hs[batch_len:]
             
 
-        # a = torch.softmax(torch.cat([batch_dot(src_feat, dst_feat_c), batch_dot(src_feat, dst_feat_s), batch_dot(src_feat, dst_feat)], dim=-1), dim=-1)
-        # dst_feat_merge = a[:, :1] * dst_feat_c + a[:, 1:2] * dst_feat_s + a[:, 2:] * dst_feat
+        a = torch.softmax(torch.cat([batch_dot(src_feat, dst_feat_c), batch_dot(src_feat, dst_feat_s), batch_dot(src_feat, dst_feat)], dim=-1), dim=-1)
+        dst_feat_merge = a[:, :1] * dst_feat_c + a[:, 1:2] * dst_feat_s + a[:, 2:] * dst_feat
 
-        a = torch.softmax(torch.cat([batch_dot(src_feat, dst_feat_c), batch_dot(src_feat, dst_feat_s)], dim=-1), dim=-1)
-        dst_feat_merge = a[:, :1] * dst_feat_c + a[:, 1:] * dst_feat_s
+        # a = torch.softmax(torch.cat([batch_dot(src_feat, dst_feat_c), batch_dot(src_feat, dst_feat_s)], dim=-1), dim=-1)
+        # dst_feat_merge = a[:, :1] * dst_feat_c + a[:, 1:] * dst_feat_s
 
         # a = torch.softmax(torch.cat([batch_dot(src_feat, dst_feat_c), batch_dot(src_feat, dst_feat)], dim=-1), dim=-1)
         # dst_feat_merge = a[:, :1] * dst_feat_c + a[:, 1:] * dst_feat
